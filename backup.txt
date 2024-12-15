@@ -1,0 +1,324 @@
+<?php
+session_start();
+require_once '../config.php';
+
+// Verificar se o usuário está logado e é um administrador
+if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_tipo'] !== 'admin') {
+    header("Location: ../index.php");
+    exit();
+}
+
+// Processar exclusão de serviço
+if (isset($_POST['excluir_servico'])) {
+    $servico_id = $_POST['servico_id'];
+    try {
+        // Buscar a imagem do serviço antes de excluir
+        $stmt = $pdo->prepare("SELECT imagem_url FROM servicos WHERE id = ?");
+        $stmt->execute([$servico_id]);
+        $imagem = $stmt->fetchColumn();
+
+        // Excluir o serviço do banco de dados
+        $stmt = $pdo->prepare("DELETE FROM servicos WHERE id = ?");
+        $stmt->execute([$servico_id]);
+
+        // Remover a imagem do servidor, se existir
+        if ($imagem && file_exists($imagem)) {
+            unlink($imagem);
+        }
+
+        header("Location: servicos.php");
+        exit();
+    } catch (PDOException $e) {
+        error_log("Erro ao excluir serviço: " . $e->getMessage());
+        $erro = "Erro ao excluir serviço: " . $e->getMessage();
+    }
+}
+
+// Buscar serviços do banco de dados
+try {
+    $stmt = $pdo->query("SELECT * FROM servicos");
+    $servicos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Erro ao buscar serviços: " . $e->getMessage());
+    $servicos = [];
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serviços</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../assets/css/sidebar.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #FF69B4;
+            --secondary-color: #FFC0CB;
+            --accent-color: #8A4FFF;
+        }
+        body {
+            background: linear-gradient(135deg, var(--background-gradient-start), var(--background-gradient-end));
+            font-family: 'Poppins', Arial, sans-serif;
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        .dashboard-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+        }
+
+        .page-title {
+            color: var(--primary-color);
+            margin-bottom: 30px;
+        }
+        
+        .btn-custom {
+            background: linear-gradient(to right, #FF69B4, #8A4FFF);
+            border: none;
+            color: white;
+        }
+        .btn-custom:hover {
+            opacity: 0.9;
+        }
+        .card {
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+
+    <div class="dashboard-content">
+        <h1 class="page-title">Gerenciar Serviços</h1>
+        <a href="cadastro_servico.php" class="btn btn-success mb-3">
+            <i class="fas fa-plus"></i> Novo Serviço
+        </a>
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Lista de Serviços</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Imagem</th>
+                                <th>Nome</th>
+                                <th>Descrição</th>
+                                <th>Preço</th>
+                                <th>Duração (minutos)</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($servicos)): ?>
+                                <?php foreach ($servicos as $servico): ?>
+                                    <tr>
+                                        <td><img src="<?php echo htmlspecialchars($servico['imagem_url']); ?>" alt="Imagem do Serviço" style="width: 50px; height: auto;"></td>
+                                        <td><?php echo htmlspecialchars($servico['nome']); ?></td>
+                                        <td><?php echo htmlspecialchars($servico['descricao']); ?></td>
+                                        <td>R$ <?php echo number_format($servico['preco'], 2, ',', '.'); ?></td>
+                                        <td><?php echo htmlspecialchars($servico['duracao_minutos']); ?></td>
+                                        <td><?php echo htmlspecialchars($servico['status']); ?></td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="editar_servico.php?id=<?php echo $servico['id']; ?>" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <form action="servicos.php" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este serviço?');">
+                                                    <input type="hidden" name="servico_id" value="<?php echo $servico['id']; ?>">
+                                                    <button type="submit" name="excluir_servico" class="btn btn-sm btn-danger">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="7" class="text-center">Nenhum serviço encontrado.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+servico
+
+
+
+
+
+<?php
+session_start();
+require_once '../config.php';
+
+// Verificar se o usuário está logado e é um administrador
+if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_tipo'] !== 'admin') {
+    header("Location: ../index.php");
+    exit();
+}
+
+// Processar o formulário de cadastro
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nome = $_POST['nome'] ?? '';
+    $descricao = $_POST['descricao'] ?? '';
+    $preco = $_POST['preco'] ?? '';
+    $status = $_POST['status'] ?? 'ativo';
+    $duracao_minutos = $_POST['duracao_minutos'] ?? '';
+    $empresa_id = $_POST['empresa_id'] ?? '';
+    $imagem = $_FILES['imagem'] ?? null;
+
+    // Validação básica
+    if (empty($nome) || empty($descricao) || empty($preco) || empty($duracao_minutos) || empty($empresa_id) || !$imagem) {
+        $erro = "Todos os campos são obrigatórios.";
+    } else {
+        // Obter o nome da empresa do usuário logado
+        $empresa_nome = $_SESSION['empresa_nome'];
+
+        // Criar diretório uploads se não existir
+        $uploads_dir = "../uploads/";
+        if (!file_exists($uploads_dir)) {
+            mkdir($uploads_dir, 0755, true);
+        }
+        // Criar diretório da empresa se não existir
+        $target_dir = $uploads_dir . "empresas/" . $empresa_nome . "/servicos-fotos/";
+        if (!file_exists($target_dir)) {
+            mkdir($target_dir, 0755, true);
+        }
+
+        // Definir o caminho do arquivo
+        $target_file = $target_dir . basename($imagem['name']);
+
+        // Verificar se o upload foi bem-sucedido
+        if (move_uploaded_file($imagem['tmp_name'], $target_file)) {
+            try {
+                $stmt = $pdo->prepare("INSERT INTO servicos (nome, descricao, preco, status, duracao_minutos, empresa_id, imagem_url) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$nome, $descricao, $preco, $status, $duracao_minutos, $empresa_id, $target_file]);
+                header("Location: servicos.php");
+                exit();
+            } catch (PDOException $e) {
+                error_log("Erro ao cadastrar serviço: " . $e->getMessage());
+                $erro = "Erro ao cadastrar serviço: " . $e->getMessage();
+            }
+        } else {
+            $erro = "Erro ao fazer upload da imagem.";
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastrar Serviço</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../assets/css/sidebar.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #FF69B4;
+            --secondary-color: #FFC0CB;
+            --accent-color: #8A4FFF;
+        }
+        body {
+            background: linear-gradient(135deg, #FFE5EC, #FFF0F5);
+            font-family: 'Poppins', Arial, sans-serif;
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+        .dashboard-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+        }
+        .page-title {
+            color: var(--primary-color);
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <?php include 'sidebar.php'; ?>
+    <div class="dashboard-content">
+        <h1 class="page-title">Cadastrar Novo Serviço</h1>
+        <?php if (isset($erro)): ?>
+            <div class="alert alert-danger" role="alert">
+                <?php echo htmlspecialchars($erro); ?>
+            </div>
+        <?php endif; ?>
+        <form action="cadastro_servico.php" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="nome" class="form-label">Nome do Serviço</label>
+                <input type="text" class="form-control" id="nome" name="nome" required>
+            </div>
+            <div class="mb-3">
+                <label for="descricao" class="form-label">Descrição</label>
+                <textarea class="form-control" id="descricao" name="descricao" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="preco" class="form-label">Preço</label>
+                <input type="number" class="form-control" id="preco" name="preco" step="0.01" required>
+            </div>
+            <div class="mb-3">
+                <label for="duracao_minutos" class="form-label">Duração (em minutos)</label>
+                <input type="number" class="form-control" id="duracao_minutos" name="duracao_minutos" required>
+            </div>
+            <div class="mb-3">
+                <label for="imagem" class="form-label">Imagem do Serviço</label>
+                <input type="file" class="form-control" id="imagem" name="imagem" accept="image/*" required>
+            </div>
+            <?php $empresa_id_usuario = $_SESSION['empresa_id']; ?>
+            <input type="hidden" name="empresa_id" value="<?php echo htmlspecialchars($empresa_id_usuario); ?>">
+            <div class="mb-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="ativo">Ativo</option>
+                    <option value="inativo">Inativo</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Cadastrar</button>
+        </form>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
