@@ -1,9 +1,16 @@
 <?php
 // Configurações de banco de dados
-$host = 'mysql';
+// $host = 'mysql';
+// $dbname = 'agendamento_db';
+// $username = 'root';
+// $password = '12345678';
+
+
+// haspberry
+$host = 'localhost';
 $dbname = 'agendamento_db';
-$username = 'root';
-$password = '12345678';
+$username = 'user';
+$password = '123456';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);

@@ -35,7 +35,7 @@ CREATE TABLE usuarios (
     tipo_acesso ENUM('admin_saas', 'admin_sistema', 'admin_empresa', 'gerente', 'funcionario', 'cliente') DEFAULT 'cliente',
     imagem_perfil_url VARCHAR(255),
     status ENUM('ativo', 'inativo', 'suspenso') DEFAULT 'ativo',
-    celular VARCHAR(20) NULL,
+    telefone VARCHAR(20) NULL,
     FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -49,6 +49,8 @@ CREATE TABLE servicos (
     categoria ENUM('barbearia', 'estetica', 'fisioterapia') NOT NULL,
     empresa_id INT NOT NULL,
     ativo BOOLEAN DEFAULT TRUE,
+    imagem_url VARCHAR(255),
+    status ENUM('ativo', 'inativo', 'suspenso') DEFAULT 'ativo',
     FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

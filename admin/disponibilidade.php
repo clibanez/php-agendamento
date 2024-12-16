@@ -29,19 +29,9 @@ ORDER BY dp.data, dp.hora_inicio");
 $stmt->execute(['profissional_id' => $profissional_id_filtro]);
 $disponibilidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Processar a edição de disponibilidade
-if (isset($_GET['editar'])) {
-    $id_disponibilidade = $_GET['editar'];
-    $stmt = $pdo->prepare("SELECT * FROM disponibilidade_profissionais WHERE id = ?");
-    $stmt->execute([$id_disponibilidade]);
-    $disponibilidade_editar = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
 // Processar a remoção de disponibilidade
 if (isset($_GET['remover'])) {
     $id_disponibilidade = $_GET['remover'];
-    
-    // Primeiro, obtenha o ID do profissional associado à disponibilidade que está sendo removida
     $stmt_profissional = $pdo->prepare("SELECT profissional_id FROM disponibilidade_profissionais WHERE id = ?");
     $stmt_profissional->execute([$id_disponibilidade]);
     $profissional = $stmt_profissional->fetch(PDO::FETCH_ASSOC);
@@ -50,13 +40,19 @@ if (isset($_GET['remover'])) {
         $stmt = $pdo->prepare("DELETE FROM disponibilidade_profissionais WHERE id = ?");
         $stmt->execute([$id_disponibilidade]);
         $_SESSION['sucesso'] = "Disponibilidade removida com sucesso!";
-        
-        // Redirecionar para a lista de disponibilidades do profissional removido
         header("Location: disponibilidade.php?profissional_id=" . $profissional['profissional_id']);
         exit();
     } else {
         $_SESSION['erro'] = "Erro ao remover a disponibilidade.";
     }
+}
+
+// Processar a edição de disponibilidade
+if (isset($_GET['editar'])) {
+    $id_disponibilidade = $_GET['editar'];
+    $stmt = $pdo->prepare("SELECT * FROM disponibilidade_profissionais WHERE id = ?");
+    $stmt->execute([$id_disponibilidade]);
+    $disponibilidade_editar = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 // Processar o cadastro de disponibilidade
@@ -65,25 +61,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = $_POST['data'];
     $hora_inicio = $_POST['hora_inicio'];
     $hora_fim = $_POST['hora_fim'];
+    $id = $_POST['id'] ?? null; // Para edição
 
-    // Validação básica
     if (empty($profissional_id) || empty($data) || empty($hora_inicio) || empty($hora_fim)) {
         $_SESSION['erro'] = "Por favor, preencha todos os campos obrigatórios.";
     } else {
-        // Verificar se já existe disponibilidade cadastrada para o mesmo profissional e horário
-        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM disponibilidade_profissionais WHERE profissional_id = ? AND data = ? AND ((hora_inicio <= ? AND hora_fim >= ?) OR (hora_inicio <= ? AND hora_fim >= ?))");
-        $stmt_check->execute([$profissional_id, $data, $hora_inicio, $hora_inicio, $hora_fim, $hora_fim]);
+        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM disponibilidade_profissionais WHERE profissional_id = ? AND data = ? AND ((hora_inicio <= ? AND hora_fim >= ?) OR (hora_inicio <= ? AND hora_fim >= ?))" . ($id ? " AND id != ?" : ""));
+        $params = $id ? [$profissional_id, $data, $hora_inicio, $hora_inicio, $hora_fim, $hora_fim, $id] : [$profissional_id, $data, $hora_inicio, $hora_inicio, $hora_fim, $hora_fim];
+        $stmt_check->execute($params);
         $conflito = $stmt_check->fetchColumn();
 
         if ($conflito > 0) {
             $_SESSION['erro'] = "Este horário já está cadastrado para o profissional selecionado. Por favor, escolha um horário diferente.";
         } else {
-            // Inserir disponibilidade
-            $stmt_insert = $pdo->prepare("INSERT INTO disponibilidade_profissionais (profissional_id, data, hora_inicio, hora_fim) VALUES (?, ?, ?, ?)");
-            $stmt_insert->execute([$profissional_id, $data, $hora_inicio, $hora_fim]);
-            $_SESSION['sucesso'] = "Disponibilidade cadastrada com sucesso!";
-            
-            // Redirecionar para a lista de disponibilidades do profissional cadastrado
+            if ($id) {
+                // Atualizar a disponibilidade
+                $stmt_update = $pdo->prepare("UPDATE disponibilidade_profissionais SET profissional_id = ?, data = ?, hora_inicio = ?, hora_fim = ? WHERE id = ?");
+                $stmt_update->execute([$profissional_id, $data, $hora_inicio, $hora_fim, $id]);
+                $_SESSION['sucesso'] = "Disponibilidade atualizada com sucesso!";
+            } else {
+                // Inserir nova disponibilidade
+                $stmt_insert = $pdo->prepare("INSERT INTO disponibilidade_profissionais (profissional_id, data, hora_inicio, hora_fim) VALUES (?, ?, ?, ?)");
+                $stmt_insert->execute([$profissional_id, $data, $hora_inicio, $hora_fim]);
+                $_SESSION['sucesso'] = "Disponibilidade cadastrada com sucesso!";
+            }
             header("Location: disponibilidade.php?profissional_id=" . $profissional_id);
             exit();
         }
@@ -239,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <i class="fas fa-calendar-plus me-2"></i> Cadastrar Disponibilidade
             </button>
 
-            <!-- Modal -->
+            <!-- Modal de Cadastro -->
             <div class="modal fade" id="cadastroModal" tabindex="-1" aria-labelledby="cadastroModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -278,6 +279,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
+            <!-- Modal de Edição -->
+            <div class="modal fade" id="editarModal" tabindex="-1" aria-labelledby="editarModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editarModalLabel">Editar Disponibilidade</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editarModalForm" action="disponibilidade.php" method="POST">
+                                <input type="hidden" name="id" value="" id="editar_modal_id">
+                                <div class="mb-3">
+                                    <label for="editar_modal_profissional_id" class="form-label">Profissional</label>
+                                    <select class="form-select" name="profissional_id" id="editar_modal_profissional_id" required>
+                                        <option value="">Selecione um profissional</option>
+                                        <?php foreach ($profissionais as $profissional): ?>
+                                            <option value="<?php echo $profissional['id']; ?>"><?php echo $profissional['nome']; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editar_modal_data" class="form-label">Data</label>
+                                    <input type="date" class="form-control" id="editar_modal_data" name="data" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editar_modal_hora_inicio" class="form-label">Hora de Início</label>
+                                    <input type="time" class="form-control" id="editar_modal_hora_inicio" name="hora_inicio" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editar_modal_hora_fim" class="form-label">Hora de Fim</label>
+                                    <input type="time" class="form-control" id="editar_modal_hora_fim" name="hora_fim" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Salvar</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card p-4 mt-4">
                 <div class="card-header">
                     <h5 class="card-title">Disponibilidades Cadastradas</h5>
@@ -301,7 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <td><?php echo htmlspecialchars($disponibilidade['hora_inicio']); ?></td>
                                 <td><?php echo htmlspecialchars($disponibilidade['hora_fim']); ?></td>
                                 <td>
-                                    <a href="#" class="btn btn-sm btn-outline-warning" title="Editar" data-bs-toggle="modal" data-bs-target="#cadastroModal" onclick="carregarDadosModal(<?php echo json_encode($disponibilidade); ?>)">
+                                    <a href="#" class="btn btn-sm btn-outline-warning" title="Editar" data-bs-toggle="modal" data-bs-target="#editarModal" onclick="carregarDadosEditarModal(<?php echo htmlspecialchars(json_encode($disponibilidade)); ?>)">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <a href="disponibilidade.php?remover=<?php echo $disponibilidade['id']; ?>" class="btn btn-sm btn-outline-danger" title="Excluir">
@@ -318,13 +358,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function carregarDadosModal(dados) {
-                document.getElementById('modal_id').value = dados.id;
-                document.getElementById('modal_profissional_id').value = dados.profissional_id;
-                document.getElementById('modal_data').value = dados.data;
-                document.getElementById('modal_hora_inicio').value = dados.hora_inicio;
-                document.getElementById('modal_hora_fim').value = dados.hora_fim;
-                document.getElementById('cadastroModalLabel').innerText = 'Editar Disponibilidade';
+            function carregarDadosEditarModal(dados) {
+                // Preencher os campos da modal com os dados da disponibilidade
+                document.getElementById('editar_modal_id').value = dados.id;
+                document.getElementById('editar_modal_profissional_id').value = dados.profissional_id;
+                document.getElementById('editar_modal_data').value = dados.data;
+                document.getElementById('editar_modal_hora_inicio').value = dados.hora_inicio;
+                document.getElementById('editar_modal_hora_fim').value = dados.hora_fim;
+
+                // Selecionar o profissional correto no dropdown
+                const select = document.getElementById('editar_modal_profissional_id');
+                select.value = dados.profissional_id; // Preencher o campo com o ID do profissional
             }
 
             // Remover alertas após 5 segundos

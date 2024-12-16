@@ -73,7 +73,7 @@ $imagem_url = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         // Validar e sanitizar inputs
-        $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
+        $nome = htmlspecialchars($_POST['nome'], ENT_QUOTES, 'UTF-8');
         $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
         $telefone = filter_input(INPUT_POST, 'telefone', FILTER_SANITIZE_STRING);
         $telefone = preg_replace('/[^0-9]/', '', $telefone);
@@ -101,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Criar diretório se não existir
             if (!file_exists($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
+                mkdir($upload_dir, 0775, true);
             }
 
             // Gerar nome de arquivo único

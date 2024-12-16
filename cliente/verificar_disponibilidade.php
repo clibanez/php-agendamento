@@ -8,21 +8,10 @@ if (!isset($_SESSION['usuario_id']) || $_SESSION['usuario_tipo'] !== 'cliente') 
     exit();
 }
 
-// Buscar serviços disponíveis e profissionais
+// Buscar profissionais ativos da mesma empresa
 try {
-    // Buscar serviços da mesma empresa do cliente
     $stmt = $pdo->prepare("
-        SELECT s.id, s.nome 
-        FROM servicos s 
-        WHERE s.ativo = 1 
-        AND s.empresa_id = (SELECT empresa_id FROM usuarios WHERE id = ?)
-    ");
-    $stmt->execute([$_SESSION['usuario_id']]);
-    $servicos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Buscar profissionais ativos da mesma empresa
-    $stmt = $pdo->prepare("
-        SELECT u.id, u.nome, u.tipo_usuario
+        SELECT u.id, u.nome
         FROM usuarios u
         WHERE u.status = 'ativo' 
         AND u.empresa_id = (SELECT empresa_id FROM usuarios WHERE id = ?)
@@ -38,7 +27,6 @@ try {
 // Processar busca de disponibilidade
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = $_POST['data'] ?? '';
-    $servico_id = $_POST['servico_id'] ?? '';
     $profissional_id = $_POST['profissional_id'] ?? '';
 
     try {
@@ -64,12 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$profissional_id, $data]);
         $agendamentos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Buscar duração do serviço
-        $stmt = $pdo->prepare("SELECT duracao_minutos FROM servicos WHERE id = ?");
-        $stmt->execute([$servico_id]);
-        $servico = $stmt->fetch(PDO::FETCH_ASSOC);
-        $duracao_servico = $servico['duracao_minutos'];
-
         // Gerar horários disponíveis
         $horarios_disponiveis = [];
         foreach ($disponibilidades as $disponibilidade) {
@@ -77,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fim = strtotime($disponibilidade['hora_fim']);
             
             // Gerar slots de acordo com a duração do serviço
-            for ($time = $inicio; $time <= $fim - ($duracao_servico * 60); $time += 1800) { // 30 minutos de intervalo
+            for ($time = $inicio; $time <= $fim; $time += 1800) { // 30 minutos de intervalo
                 $horario_inicio = date('H:i', $time);
-                $horario_fim = date('H:i', $time + ($duracao_servico * 60));
+                $horario_fim = date('H:i', $time + 30 * 60); // Duração fixa de 30 minutos
                 
                 // Verificar conflitos com agendamentos existentes
                 $disponivel = true;
@@ -237,31 +219,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .btn-voltar {
-    border: 2px solid var(--primary-color);
-    color: var(--primary-color);
-    border-radius: 25px;
-    padding: 10px 20px;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    background: white;
-}
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 25px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            background: white;
+        }
 
-.btn-voltar:hover {
-    background: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(255,105,180,0.3);
-}
+        .btn-voltar:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,105,180,0.3);
+        }
 
-.btn-voltar i {
-    transition: transform 0.3s ease;
-}
+        .btn-voltar i {
+            transition: transform 0.3s ease;
+        }
 
-.btn-voltar:hover i {
-    transform: translateX(-3px);
-}
+        .btn-voltar:hover i {
+            transform: translateX(-3px);
+        }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
@@ -302,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </h2>
 
             <form method="POST" class="row g-4">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="fas fa-calendar"></i>
@@ -312,23 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
 
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-cut"></i>
-                        </span>
-                        <select class="form-select" id="servico_id" name="servico_id" required>
-                            <option value="">Serviço</option>
-                            <?php foreach ($servicos as $servico): ?>
-                                <option value="<?= $servico['id'] ?>">
-                                    <?= htmlspecialchars($servico['nome']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="fas fa-user"></i>
@@ -361,7 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </h3>
                 <div class="horarios-container">
                     <?php foreach ($horarios_disponiveis as $horario): ?>
-                        <a href="agendamento/cadastro_agendamento.php?data=<?= $data ?>&horario_inicio=<?= $horario['inicio'] ?>&horario_fim=<?= $horario['fim'] ?>&servico_id=<?= $servico_id ?>&profissional_id=<?= $profissional_id ?>" 
+                        <a href="agendamento/cadastro_agendamento.php?data=<?= $data ?>&horario_inicio=<?= $horario['inicio'] ?>&horario_fim=<?= $horario['fim'] ?>&profissional_id=<?= $profissional_id ?>" 
                            class="horario-btn">
                             <i class="far fa-clock"></i>
                             <?= $horario['inicio'] ?>

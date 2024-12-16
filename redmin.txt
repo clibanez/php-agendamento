@@ -1,0 +1,84 @@
+# Nome do Projeto
+
+Descrição breve do projeto e seu propósito.
+
+## Tabela de Conteúdos
+
+- [Sobre](#sobre)
+- [Funcionalidades](#funcionalidades)
+- [Tecnologias Utilizadas](#tecnologias-utilizadas)
+- [Instalação](#instalação)
+- [Uso](#uso)
+- [Contribuição](#contribuição)
+- [Licença](#licença)
+
+## Sobre
+
+Este projeto é um sistema de agendamento que permite que usuários agendem serviços em empresas de diferentes categorias, como barbearia, estética e fisioterapia. O sistema inclui relatórios detalhados sobre agendamentos, faturamento e estatísticas de uso.
+
+## Funcionalidades
+
+- Cadastro de usuários e empresas.
+- Agendamento de serviços.
+- Relatórios de agendamentos diários, semanais, mensais e anuais.
+- Visualização de faturamento total por período.
+- Interface amigável com gráficos interativos.
+
+## Tecnologias Utilizadas
+
+- PHP
+- MySQL
+- HTML/CSS
+- JavaScript
+- Chart.js (para gráficos)
+- Bootstrap (para design responsivo)
+
+## Instalação
+
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/seuusuario/seu-repositorio.git
+   ```
+
+2. Navegue até o diretório do projeto:
+   ```bash
+   cd seu-repositorio
+   ```
+
+3. Configure o banco de dados:
+   - Crie um banco de dados MySQL e importe os arquivos SQL fornecidos para criar as tabelas necessárias.
+
+4. Configure as credenciais do banco de dados no arquivo `config.php`.
+
+5. Inicie um servidor local (por exemplo, usando XAMPP ou MAMP) e acesse o projeto pelo navegador.
+
+## Uso
+
+- Acesse a aplicação pelo navegador em `http://localhost/seu-repositorio/admin/index.php`.
+- Faça login com as credenciais de administrador.
+- Navegue pelas funcionalidades disponíveis, como agendamentos e relatórios.
+
+## Contribuição
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir um issue ou enviar um pull request.
+
+1. Fork o projeto.
+2. Crie uma branch para sua feature:
+   ```bash
+   git checkout -b minha-feature
+   ```
+3. Faça suas alterações e commit:
+   ```bash
+   git commit -m 'Adicionando nova funcionalidade'
+   ```
+4. Envie para o repositório remoto:
+   ```bash
+   git push origin minha-feature
+   ```
+5. Abra um pull request.
+
+## Licença
+
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+scp -r * servidor@192.168.0.33:/var/www/html/agendamento-php
